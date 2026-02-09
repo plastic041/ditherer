@@ -1,4 +1,6 @@
 export const shaderCode = /* wgsl */ `
+// basic image adjustments code is from
+// https://docs.swmansion.com/TypeGPU/examples/#example=image-processing--image-tuning
 @vertex
 fn main_vert(@builtin(vertex_index) index: u32) -> VertexOutput {
   const vertices = array<vec2f, 4>(
@@ -16,8 +18,18 @@ fn main_vert(@builtin(vertex_index) index: u32) -> VertexOutput {
   return output;
 }
 
+const bayerIndex = mat4x4<f32>(
+    vec4<f32>(00.0/16.0, 12.0/16.0, 03.0/16.0, 15.0/16.0),
+    vec4<f32>(08.0/16.0, 04.0/16.0, 11.0/16.0, 07.0/16.0),
+    vec4<f32>(02.0/16.0, 14.0/16.0, 01.0/16.0, 13.0/16.0),
+    vec4<f32>(10.0/16.0, 06.0/16.0, 09.0/16.0, 05.0/16.0)
+);
+
 @fragment
-fn main_frag(@location(0) uv: vec2f) -> @location(0) vec4f {
+fn main_frag(
+  @location(0) uv: vec2f,
+  @builtin(position) fragCoord: vec4<f32>
+) -> @location(0) vec4f {
   let color = textureSample(inTexture, inSampler, uv).rgb;
   let inputLuminance = dot(color, vec3f(0.299, 0.587, 0.114));
   let normColor = clamp(color, vec3f(0.0), vec3f(1.0));
@@ -43,12 +55,11 @@ fn main_frag(@location(0) uv: vec2f) -> @location(0) vec4f {
   let shadowLuminanceAdjust = pow(highlightLuminance, 1.0 / adjustments.shadows);
 
   let toneColor = mix(highlightColor, shadowAdjust, shadowWeight);
-  let toneLuminance = mix(highlightLuminance, shadowLuminanceAdjust, shadowWeight);
+  let grayscale = mix(highlightLuminance, shadowLuminanceAdjust, shadowWeight);
+  
+  let bayerValue = bayerIndex[i32(fragCoord.x) % 4][i32(fragCoord.y) % 4];
+  let ditheredColor = vec3f(step(bayerValue, grayscale));
 
-  let finalToneColor = clamp(toneColor, vec3f(0.0), vec3f(1.0));
-  let grayscaleColor = vec3f(toneLuminance);
-  let finalColor = mix(grayscaleColor, finalToneColor, adjustments.saturation);
-
-  return vec4f(finalColor, 1.0);
+  return vec4f(ditheredColor, 1.0);
 }
 `;

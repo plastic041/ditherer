@@ -16,7 +16,6 @@ const Adjustments = d.struct({
   contrast: d.f32,
   highlights: d.f32,
   shadows: d.f32,
-  saturation: d.f32,
 });
 
 let imageTexture: TgpuTexture<{ size: [number, number]; format: "rgba8unorm" }> & SampledFlag;
@@ -31,7 +30,6 @@ let adjustmentsBuffer: TgpuBuffer<
     contrast: d.F32;
     highlights: d.F32;
     shadows: d.F32;
-    saturation: d.F32;
   }>
 > &
   UniformFlag;
@@ -160,7 +158,6 @@ onMounted(async () => {
   await ready();
   adjustmentsBuffer.writePartial({ exposure: 1 });
   adjustmentsBuffer.writePartial({ highlights: 1 });
-  adjustmentsBuffer.writePartial({ saturation: 1 });
   adjustmentsBuffer.writePartial({ shadows: 1 });
   adjustmentsBuffer.writePartial({ contrast: 1 });
   init();
@@ -200,21 +197,6 @@ onUnmounted(() => {
         @input="
           (e) => {
             setBufferValue('highlights', (e.currentTarget as HTMLInputElement).valueAsNumber);
-          }
-        "
-      />
-    </label>
-    <label>
-      Saturation
-      <input
-        type="range"
-        min="0"
-        max="2"
-        step="0.1"
-        defaultValue="1"
-        @input="
-          (e) => {
-            setBufferValue('saturation', (e.currentTarget as HTMLInputElement).valueAsNumber);
           }
         "
       />
