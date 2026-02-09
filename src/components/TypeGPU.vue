@@ -7,9 +7,11 @@ import tgpu, {
   type UniformFlag,
 } from "typegpu";
 import * as d from "typegpu/data";
-import { onMounted, onUnmounted, ref } from "vue";
+import { computed, onMounted, onUnmounted, ref } from "vue";
 import { shaderCode } from "../shaders/image.ts";
 import Slider from "@/components/ui/slider/Slider.vue";
+import Button from "@/components/ui/button/Button.vue";
+import { MinusIcon, PlusIcon } from "lucide-vue-next";
 
 const Adjustments = d.struct({
   exposure: d.f32,
@@ -111,6 +113,8 @@ const orderedMatrix = [
 ];
 
 const matrix = ref<number[][]>(orderedMatrix);
+const matrixWidth = computed(() => matrix.value[0]!.length);
+const matrixHeight = computed(() => matrix.value.length);
 
 async function ready() {
   root = await tgpu.init();
@@ -257,13 +261,13 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <main class="grid grid-cols-3 mx-auto container">
+  <main class="grid grid-cols-1 lg:grid-cols-3 mx-auto container p-2 gap-4">
     <div class="w-full">
       <canvas class="w-full" />
     </div>
 
-    <div class="col-span-2">
-      <div class="flex flex-col">
+    <div class="lg:col-span-2 grid gap-4">
+      <div class="flex flex-col gap-2">
         <label v-for="control in ADJUSTMENTS_CONTROLS" class="flex flex-row gap-2">
           <div class="capitalize w-30">{{ control.key }}</div>
           <div class="font-mono w-16">
@@ -287,30 +291,95 @@ onUnmounted(() => {
         </label>
       </div>
 
-      <table class="[&_td]:border">
+      <table class="[&_td]:border w-full">
         <tr v-for="(row, y) in matrix">
-          <td v-for="(cell, x) in row">
-            <input
-              type="number"
-              min="0"
-              step="1"
-              :value="cell"
-              @change="
-                (e) => {
-                  const value = (e.target as HTMLInputElement).valueAsNumber;
-                  matrix[y]![x]! = value;
-                  adjustmentsBuffer.writePartial({
-                    orderedMatrixArray: matrix
-                      .flat()
-                      .map((value, idx) => ({ idx, value: value / 16 })),
-                  });
-                  render();
-                }
-              "
-            />
+          <td v-for="(cell, x) in row" class="p-1">
+            <div class="flex flex-row items-center gap-1">
+              <Button
+                variant="outline"
+                class="p-2 size-6"
+                :disabled="cell == 0"
+                @click="
+                  () => {
+                    matrix[y]![x]! -= 1;
+                    adjustmentsBuffer.writePartial({
+                      orderedMatrixArray: matrix
+                        .flat()
+                        .map((value, idx) => ({ idx, value: value / 16 })),
+                    });
+                    render();
+                  }
+                "
+              >
+                <MinusIcon />
+              </Button>
+
+              <div
+                class="size-5 shrink-0"
+                :style="{
+                  backgroundColor: `hsl(0 0% ${(cell / (matrixHeight * matrixWidth)) * 100}%)`,
+                }"
+              />
+
+              <input
+                class="font-mono w-full text-center"
+                type="number"
+                min="0"
+                step="1"
+                :value="cell"
+                @change="
+                  (e) => {
+                    const value = (e.target as HTMLInputElement).valueAsNumber;
+                    matrix[y]![x]! = value;
+                    adjustmentsBuffer.writePartial({
+                      orderedMatrixArray: matrix
+                        .flat()
+                        .map((value, idx) => ({ idx, value: value / 16 })),
+                    });
+                    render();
+                  }
+                "
+              />
+
+              <Button
+                variant="outline"
+                class="p-2 size-6"
+                :disabled="cell == matrixHeight * matrixWidth - 1"
+                @click="
+                  () => {
+                    matrix[y]![x]! += 1;
+                    adjustmentsBuffer.writePartial({
+                      orderedMatrixArray: matrix
+                        .flat()
+                        .map((value, idx) => ({ idx, value: value / 16 })),
+                    });
+                    render();
+                  }
+                "
+              >
+                <PlusIcon />
+              </Button>
+            </div>
           </td>
         </tr>
       </table>
     </div>
   </main>
 </template>
+
+<style lang="css" scoped>
+/*
+Source - https://stackoverflow.com/a/27935448
+Posted by Josh Crozier, modified by community. See post 'Timeline' for change history
+Retrieved 2026-02-09, License - CC BY-SA 3.0
+*/
+
+input[type="number"]::-webkit-outer-spin-button,
+input[type="number"]::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+input[type="number"] {
+  -moz-appearance: textfield;
+}
+</style>
