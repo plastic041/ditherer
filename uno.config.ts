@@ -8,7 +8,7 @@ export default defineConfig({
     presetAnimations(),
     presetShadcn(
       {
-        color: "red",
+        color: "blue",
         // With default setting for SolidUI, you need to set the darkSelector option.
         darkSelector: '[data-kb-theme="dark"]',
       },
