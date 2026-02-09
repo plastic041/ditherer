@@ -23,6 +23,7 @@ const Adjustments = d.struct({
 
 let imageTexture: TgpuTexture<{ size: [number, number]; format: "rgba8unorm" }> & SampledFlag;
 
+let canvas: HTMLCanvasElement;
 let root: TgpuRoot;
 let device: GPUDevice;
 let context: GPUCanvasContext;
@@ -54,7 +55,7 @@ const matrix = ref<number[][]>(orderedMatrix);
 async function ready() {
   root = await tgpu.init();
   device = root.device;
-  const canvas = document.querySelector("canvas") as HTMLCanvasElement;
+  canvas = document.querySelector("canvas") as HTMLCanvasElement;
   context = canvas.getContext("webgpu") as GPUCanvasContext;
   presentationFormat = navigator.gpu.getPreferredCanvasFormat();
 
@@ -145,6 +146,9 @@ async function init() {
   const response = await fetch("/images/test_image.jpeg");
   const imageBitmap = await createImageBitmap(await response.blob());
   const [srcWidth, srcHeight] = [imageBitmap.width, imageBitmap.height];
+
+  canvas.setAttribute("width", `${srcWidth}`);
+  canvas.setAttribute("height", `${srcHeight}`);
 
   imageTexture = root["~unstable"]
     .createTexture({
