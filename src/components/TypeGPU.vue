@@ -41,6 +41,56 @@ let adjustmentsBuffer: TgpuBuffer<
 > &
   UniformFlag;
 
+const ADJUSTMENTS_CONTROLS: {
+  key: keyof typeof adjustmentsBuffer.dataType.propTypes;
+  min: number;
+  max: number;
+  step: number;
+  defaultValue: number;
+  onInput: (e: Event) => void;
+}[] = [
+  {
+    key: "exposure",
+    min: -2,
+    max: 2,
+    step: 0.1,
+    defaultValue: 1,
+    onInput: (e: Event) => {
+      setBufferValue("exposure", (e.currentTarget as HTMLInputElement).valueAsNumber);
+    },
+  },
+  {
+    key: "contrast",
+    min: 0,
+    max: 2,
+    step: 0.1,
+    defaultValue: 1,
+    onInput: (e: Event) => {
+      setBufferValue("contrast", (e.currentTarget as HTMLInputElement).valueAsNumber);
+    },
+  },
+  {
+    key: "highlights",
+    min: 0,
+    max: 2,
+    step: 0.1,
+    defaultValue: 1,
+    onInput: (e: Event) => {
+      setBufferValue("highlights", (e.currentTarget as HTMLInputElement).valueAsNumber);
+    },
+  },
+  {
+    key: "shadows",
+    min: 0.1,
+    max: 1.9,
+    step: 0.1,
+    defaultValue: 1,
+    onInput: (e: Event) => {
+      setBufferValue("shadows", (e.currentTarget as HTMLInputElement).valueAsNumber);
+    },
+  },
+];
+
 // prettier-ignore
 const orderedMatrix = [
    // oxlint-disable-next-line oxc/erasing-op
@@ -197,110 +247,59 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <canvas />
-  <div class="flex flex-col">
-    <label>
-      Exposure
-      <input
-        type="range"
-        min="-2"
-        max="2"
-        step="0.1"
-        defaultValue="1"
-        @input="
-          (e) => {
-            setBufferValue('exposure', (e.currentTarget as HTMLInputElement).valueAsNumber);
-          }
-        "
-      />
-    </label>
-    <label>
-      Highlights
-      <input
-        type="range"
-        min="0"
-        max="2"
-        step="0.1"
-        defaultValue="1"
-        @input="
-          (e) => {
-            setBufferValue('highlights', (e.currentTarget as HTMLInputElement).valueAsNumber);
-          }
-        "
-      />
-    </label>
-    <label>
-      Shadows
-      <input
-        type="range"
-        min="0.1"
-        max="1.9"
-        step="0.1"
-        defaultValue="1"
-        @input="
-          (e) => {
-            setBufferValue('shadows', (e.currentTarget as HTMLInputElement).valueAsNumber);
-          }
-        "
-      />
-    </label>
-    <label>
-      Contrast
-      <input
-        type="range"
-        min="0"
-        max="2"
-        step="0.1"
-        defaultValue="1"
-        @input="
-          (e) => {
-            setBufferValue('contrast', (e.currentTarget as HTMLInputElement).valueAsNumber);
-          }
-        "
-      />
-    </label>
-  </div>
+  <main class="grid grid-cols-3 mx-auto container">
+    <div class="w-full">
+      <canvas class="w-full" />
+    </div>
 
-  <div>
-    <table class="[&_td]:border">
-      <tr v-for="(row, y) in matrix">
-        <td v-for="(cell, x) in row">
-          <input
-            type="number"
-            min="0"
-            max="1"
-            step="0.005"
-            :value="cell"
-            @change="
-              (e) => {
-                const value = (e.target as HTMLInputElement).valueAsNumber;
-                matrix[y]![x]! = value;
-                adjustmentsBuffer.writePartial({
-                  orderedMatrixArray: matrix.flat().map((value, idx) => ({ idx, value })),
-                });
-                render();
-              }
-            "
-          />
-          <input
-            type="range"
-            min="0"
-            max="1"
-            step="0.005"
-            :value="cell"
-            @input="
-              (e) => {
-                const value = (e.target as HTMLInputElement).valueAsNumber;
-                matrix[y]![x]! = value;
-                adjustmentsBuffer.writePartial({
-                  orderedMatrixArray: matrix.flat().map((value, idx) => ({ idx, value })),
-                });
-                render();
-              }
-            "
-          />
-        </td>
-      </tr>
-    </table>
-  </div>
+    <div class="col-span-2">
+      <div class="flex flex-col">
+        <label v-for="control in ADJUSTMENTS_CONTROLS" class="flex flex-row">
+          <div class="capitalize w-30">{{ control.key }}</div>
+          <input type="range" v-bind="control" />
+        </label>
+      </div>
+
+      <table class="[&_td]:border">
+        <tr v-for="(row, y) in matrix">
+          <td v-for="(cell, x) in row">
+            <input
+              type="number"
+              min="0"
+              max="1"
+              step="0.005"
+              :value="cell"
+              @change="
+                (e) => {
+                  const value = (e.target as HTMLInputElement).valueAsNumber;
+                  matrix[y]![x]! = value;
+                  adjustmentsBuffer.writePartial({
+                    orderedMatrixArray: matrix.flat().map((value, idx) => ({ idx, value })),
+                  });
+                  render();
+                }
+              "
+            />
+            <input
+              type="range"
+              min="0"
+              max="1"
+              step="0.005"
+              :value="cell"
+              @input="
+                (e) => {
+                  const value = (e.target as HTMLInputElement).valueAsNumber;
+                  matrix[y]![x]! = value;
+                  adjustmentsBuffer.writePartial({
+                    orderedMatrixArray: matrix.flat().map((value, idx) => ({ idx, value })),
+                  });
+                  render();
+                }
+              "
+            />
+          </td>
+        </tr>
+      </table>
+    </div>
+  </main>
 </template>

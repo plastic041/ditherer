@@ -4,7 +4,6 @@ import TypeGPU from "./components/TypeGPU.vue";
 </script>
 
 <template>
-  hi
   <Suspense>
     <TypeGPU />
   </Suspense>
