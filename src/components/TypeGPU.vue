@@ -1,5 +1,4 @@
 <script setup lang="ts">
-// see https://docs.swmansion.com/TypeGPU/examples/#example=image-processing--image-tuning
 import tgpu, {
   type SampledFlag,
   type TgpuBuffer,
@@ -10,6 +9,7 @@ import tgpu, {
 import * as d from "typegpu/data";
 import { onMounted, onUnmounted, ref } from "vue";
 import { shaderCode } from "../shaders/image.ts";
+import Slider from "@/components/ui/slider/Slider.vue";
 
 const Adjustments = d.struct({
   exposure: d.f32,
@@ -41,63 +41,73 @@ let adjustmentsBuffer: TgpuBuffer<
 > &
   UniformFlag;
 
+type AdjustmentsKey = Exclude<
+  keyof typeof adjustmentsBuffer.dataType.propTypes,
+  "matrixHeight" | "matrixWidth" | "orderedMatrixArray"
+>;
+
 const ADJUSTMENTS_CONTROLS: {
-  key: keyof typeof adjustmentsBuffer.dataType.propTypes;
+  key: AdjustmentsKey;
   min: number;
   max: number;
   step: number;
-  defaultValue: number;
-  onInput: (e: Event) => void;
+  defaultValue: [number];
+  onUpdate: (value: number[] | undefined) => void;
 }[] = [
   {
     key: "exposure",
     min: -2,
     max: 2,
-    step: 0.1,
-    defaultValue: 1,
-    onInput: (e: Event) => {
-      setBufferValue("exposure", (e.currentTarget as HTMLInputElement).valueAsNumber);
+    step: 0.01,
+    defaultValue: [1],
+    onUpdate: (value) => {
+      if (value) setBufferValue("exposure", value[0]!);
     },
   },
   {
     key: "contrast",
     min: 0,
     max: 2,
-    step: 0.1,
-    defaultValue: 1,
-    onInput: (e: Event) => {
-      setBufferValue("contrast", (e.currentTarget as HTMLInputElement).valueAsNumber);
+    step: 0.01,
+    defaultValue: [1],
+    onUpdate: (value) => {
+      if (value) setBufferValue("contrast", value[0]!);
     },
   },
   {
     key: "highlights",
     min: 0,
     max: 2,
-    step: 0.1,
-    defaultValue: 1,
-    onInput: (e: Event) => {
-      setBufferValue("highlights", (e.currentTarget as HTMLInputElement).valueAsNumber);
+    step: 0.01,
+    defaultValue: [1],
+    onUpdate: (value) => {
+      if (value) setBufferValue("highlights", value[0]!);
     },
   },
   {
     key: "shadows",
     min: 0.1,
     max: 1.9,
-    step: 0.1,
-    defaultValue: 1,
-    onInput: (e: Event) => {
-      setBufferValue("shadows", (e.currentTarget as HTMLInputElement).valueAsNumber);
+    step: 0.01,
+    defaultValue: [1],
+    onUpdate: (value) => {
+      if (value) setBufferValue("shadows", value[0]!);
     },
   },
-];
+] as const;
+const adjustmentsValues = ref<Record<AdjustmentsKey, number>>({
+  contrast: 1,
+  exposure: 1,
+  highlights: 1,
+  shadows: 1,
+});
 
 // prettier-ignore
 const orderedMatrix = [
-   // oxlint-disable-next-line oxc/erasing-op
-  [ 0.0 / 16.0, 12.0 / 16.0,  3.0 / 16.0, 15.0 / 16.0],
-  [ 8.0 / 16.0,  4.0 / 16.0, 11.0 / 16.0,  7.0 / 16.0],
-  [ 2.0 / 16.0, 14.0 / 16.0,  1.0 / 16.0, 13.0 / 16.0],
-  [10.0 / 16.0,  6.0 / 16.0,  9.0 / 16.0,  5.0 / 16.0],
+  [ 0, 12,  3, 15],
+  [ 8,  4, 11,  7],
+  [ 2, 14,  1, 13],
+  [10,  6,  9,  5],
 ];
 
 const matrix = ref<number[][]>(orderedMatrix);
@@ -229,7 +239,7 @@ onMounted(async () => {
   await ready();
 
   adjustmentsBuffer.write({
-    orderedMatrixArray: orderedMatrix.flat(),
+    orderedMatrixArray: orderedMatrix.flat().map((n) => n / 16),
     matrixHeight: 4,
     matrixWidth: 4,
 
@@ -254,9 +264,26 @@ onUnmounted(() => {
 
     <div class="col-span-2">
       <div class="flex flex-col">
-        <label v-for="control in ADJUSTMENTS_CONTROLS" class="flex flex-row">
+        <label v-for="control in ADJUSTMENTS_CONTROLS" class="flex flex-row gap-2">
           <div class="capitalize w-30">{{ control.key }}</div>
-          <input type="range" v-bind="control" />
+          <div class="font-mono w-16">
+            {{ adjustmentsValues[control.key].toFixed(2) }}
+          </div>
+          <Slider
+            :min="control.min"
+            :max="control.max"
+            :step="control.step"
+            :modelValue="[adjustmentsValues[control.key]]"
+            :defaultValue="control.defaultValue"
+            @update:modelValue="
+              (value) => {
+                if (value) {
+                  adjustmentsValues[control.key] = value[0]!;
+                  control.onUpdate(value);
+                }
+              }
+            "
+          />
         </label>
       </div>
 
@@ -266,32 +293,16 @@ onUnmounted(() => {
             <input
               type="number"
               min="0"
-              max="1"
-              step="0.005"
+              step="1"
               :value="cell"
               @change="
                 (e) => {
                   const value = (e.target as HTMLInputElement).valueAsNumber;
                   matrix[y]![x]! = value;
                   adjustmentsBuffer.writePartial({
-                    orderedMatrixArray: matrix.flat().map((value, idx) => ({ idx, value })),
-                  });
-                  render();
-                }
-              "
-            />
-            <input
-              type="range"
-              min="0"
-              max="1"
-              step="0.005"
-              :value="cell"
-              @input="
-                (e) => {
-                  const value = (e.target as HTMLInputElement).valueAsNumber;
-                  matrix[y]![x]! = value;
-                  adjustmentsBuffer.writePartial({
-                    orderedMatrixArray: matrix.flat().map((value, idx) => ({ idx, value })),
+                    orderedMatrixArray: matrix
+                      .flat()
+                      .map((value, idx) => ({ idx, value: value / 16 })),
                   });
                   render();
                 }
