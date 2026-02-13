@@ -29,6 +29,7 @@
     "@types/three": "^0.182.0",
     "@vitejs/plugin-vue": "^6.0.1",
     "@vue/tsconfig": "^0.8.1",
+    "@webgpu/types": "^0.1.69",
     "oxfmt": "^0.27.0",
     "oxlint": "^1.42.0",
     "typescript": "~5.9.3",
